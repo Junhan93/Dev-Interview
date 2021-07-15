@@ -25,7 +25,21 @@ class PriceHelper
      */
     public static function getUnitPriceTierAtQty(int $qty, array $tiers): float
     {
-        return 0.0;
+        if ( $qty <= 0) {
+            return 0;
+        }
+        // return price tier if qty is more than or equals to 0 AND less than 10,001
+        else if ( $qty >= array_keys($tiers)[0] && $qty < array_keys($tiers)[1]) {
+            return array_values($tiers)[0];
+        } 
+        // return price tier if qty is more than or equals to 10,001 AND less than 100,001
+        else if ( $qty >= array_keys($tiers)[1] && $qty < array_keys($tiers)[2]) {
+            return array_values($tiers)[1];
+        }
+        // return price tier if qty is more than or equals to 100,001
+        else if ( $qty >= array_keys($tiers)[2] ) {
+            return array_values($tiers)[2];
+        }
     }
 
     /**
