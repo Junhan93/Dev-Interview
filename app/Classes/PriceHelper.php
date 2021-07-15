@@ -26,20 +26,22 @@ class PriceHelper
     public static function getUnitPriceTierAtQty(int $qty, array $tiers): float
     {
         if ( $qty <= 0) {
-            return 0;
+            $unitPrice = 0;
         }
-        // return price tier if qty is more than or equals to 0 AND less than 10,001
+        // return price tier if qty is more than 0 AND less than 10,001
         else if ( $qty >= array_keys($tiers)[0] && $qty < array_keys($tiers)[1]) {
-            return array_values($tiers)[0];
+            $unitPrice = array_values($tiers)[0];
         } 
         // return price tier if qty is more than or equals to 10,001 AND less than 100,001
         else if ( $qty >= array_keys($tiers)[1] && $qty < array_keys($tiers)[2]) {
-            return array_values($tiers)[1];
+            $unitPrice = array_values($tiers)[1];
         }
         // return price tier if qty is more than or equals to 100,001
         else if ( $qty >= array_keys($tiers)[2] ) {
-            return array_values($tiers)[2];
+            $unitPrice = array_values($tiers)[2];
         }
+
+        return $unitPrice;
     }
 
     /**
@@ -56,7 +58,27 @@ class PriceHelper
      */
     public static function getTotalPriceTierAtQty(int $qty, array $tiers): float
     {
-        return 0.0;
+        // get the maximum total price of each tier
+        $tier1max = (array_keys($tiers)[1] - 1) * array_values($tiers)[0]; // 15000 = 10000 * 1.5
+        $tier2max = (array_keys($tiers)[2] - 1) - (array_keys($tiers)[1] - 1) * array_values($tiers)[1]; // 90,000 = 100,000 - 10,000(max quantity for prev tier) * 1
+
+        if ( $qty <= 0) {
+            $price = 0;
+        }
+        // return total price for qty more than 0 AND less than 10,001
+        else if ( $qty >= array_keys($tiers)[0] && $qty < array_keys($tiers)[1]) {
+            $price = $qty * array_values($tiers)[0];
+        } 
+        // return total price for qty more than 10,001 AND less than 100,001
+        else if ( $qty >= array_keys($tiers)[1] && $qty < array_keys($tiers)[2]) {
+            $price = ( ($qty - (array_keys($tiers)[1] - 1) ) * array_values($tiers)[1] ) + $tier1max;
+        }
+        // return total price for qty more than or equals to 100,001
+        else if ( $qty >= array_keys($tiers)[2] ) {
+            $price = ( ($qty - (array_keys($tiers)[2] - 1) ) * array_values($tiers)[2] ) + $tier1max + $tier2max;
+        }
+
+        return $price;
     }
 
     /**
