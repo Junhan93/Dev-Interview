@@ -30,15 +30,15 @@ class PriceHelper
         }
         // return price tier if qty is more than 0 AND less than 10,001
         else if ( $qty >= array_keys($tiers)[0] && $qty < array_keys($tiers)[1]) {
-            $unitPrice = array_values($tiers)[0];
+            $unitPrice = array_values($tiers)[0]; // 1.5
         } 
         // return price tier if qty is more than or equals to 10,001 AND less than 100,001
         else if ( $qty >= array_keys($tiers)[1] && $qty < array_keys($tiers)[2]) {
-            $unitPrice = array_values($tiers)[1];
+            $unitPrice = array_values($tiers)[1]; // 1.0
         }
         // return price tier if qty is more than or equals to 100,001
         else if ( $qty >= array_keys($tiers)[2] ) {
-            $unitPrice = array_values($tiers)[2];
+            $unitPrice = array_values($tiers)[2]; // 0.5
         }
 
         return $unitPrice;
@@ -97,6 +97,65 @@ class PriceHelper
      */
     public static function getPriceAtEachQty(array $qtyArr, array $tiers, bool $cumulative = false): array
     {
-       return [];
+        $cumuPrice = [];
+        $cumuQty = [];
+
+        // get the maximum total price of each tier
+        $tier1max = (array_keys($tiers)[1] - 1) * array_values($tiers)[0]; // 15000 = 10000 * 1.5
+        $tier2max = (array_keys($tiers)[2] - 1) - (array_keys($tiers)[1] - 1) * array_values($tiers)[1]; // 90,000 = 100,000 - 10,000(max quantity for prev tier) * 1
+
+
+        if ($cumulative) {
+            foreach ($qtyArr as $qty) {
+                array_push($cumuQty, $qty);
+
+                if ( $qty <= 0 ) {
+                    $price = 0;
+                }
+                // less than 10001 AND more than or equals to 0
+                else if ( array_sum($cumuQty) < array_keys($tiers)[1] && array_sum($cumuQty) >= 0 ) {
+                    $price = $qty * array_values($tiers)[0]; // 1.5
+                }
+                // less than 100,001 AND more than or equals to 10001
+                else if ( array_sum($cumuQty) < array_keys($tiers)[2] && array_sum($cumuQty) >= array_keys($tiers)[1] ) {
+                    
+                    $qty = array_sum($cumuQty) - (array_keys($tiers)[1] - 1); // cumulative - 10,000
+                    $price = ($qty * array_values($tiers)[1]) + $tier1max - array_sum($cumuPrice); // qty * 1 + 15,000 - previous months prices
+        
+                }
+                // more than or equals to 100,001
+                else if ( array_sum($cumuQty) >= array_keys($tiers)[2] ) {
+                    $qty = array_sum($cumuQty) - (array_keys($tiers)[2] - 1); // cumulative - 100,000
+                    $price = ($qty * array_values($tiers)[2]) + ($tier1max + $tier2max) - array_sum($cumuPrice); // qty * 0.5 + 105,000 - previous months prices
+                }
+                
+                array_push($cumuPrice, $price);
+            }
+            
+        }
+
+        else {
+            foreach ($qtyArr as $qty) {
+                if ( $qty <= 0) {
+                    $price = 0;
+                }
+                // return total price for qty more than 0 AND less than 10,001
+                else if ( $qty >= array_keys($tiers)[0] && $qty < array_keys($tiers)[1]) {
+                    $price = $qty * array_values($tiers)[0];
+                } 
+                // return total price for qty more than 10,001 AND less than 100,001
+                else if ( $qty >= array_keys($tiers)[1] && $qty < array_keys($tiers)[2]) {
+                    $price = ( ($qty - (array_keys($tiers)[1] - 1) ) * array_values($tiers)[1] ) + $tier1max;
+                }
+                // return total price for qty more than or equals to 100,001
+                else if ( $qty >= array_keys($tiers)[2] ) {
+                    $price = ( ($qty - (array_keys($tiers)[2] - 1) ) * array_values($tiers)[2] ) + $tier1max + $tier2max;
+                }
+
+                array_push($cumuPrice, $price);
+            }
+        }
+
+        return $cumuPrice;
     }
 }
