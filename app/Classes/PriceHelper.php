@@ -32,11 +32,11 @@ class PriceHelper
         if ( $qty > 0 ) {
             // looped thru all so we don't have to worry if someone changes the priceTiers
             for ($i=0; $i < count($tiers); $i++) {
-                $current = $tier[$i];
-                $next = next($tier);
+                $currentTier = $tier[$i];
+                $nextTier = next($tier);
 
                 // this prevents $i+1 to return something more than the maximum amount of tiers 
-                if ( $i === count($tiers)-1 || $qty >= $current && $qty < $next ) {
+                if ( $i === count($tiers)-1 || $qty >= $currentTier && $qty < $nextTier ) {
                     $unitPrice = $price[$i];
                     return $unitPrice; 
                 }
@@ -67,17 +67,17 @@ class PriceHelper
         
         // get maximum price of tiers below qty, get tier level of qty, add them tgt. 
         for ( $i=0; $i < count($tiers); $i++ ) { 
-            $current = $tier[$i];
-            $next    = next($tier);
+            $currentTier = $tier[$i];
+            $nextTier    = next($tier);
             
             // save max price of first tier to maxTierPrice[] 
             if ( $i === 0 ) {
-                $maxTierPrice[] = ( $next-1 ) * $price[$i];
+                $maxTierPrice[] = ( $nextTier-1 ) * $price[$i];
             }
     
             // if iterating in middle, save the maximum price of the tiers to maxTierPrice[]  
             if ( $i > 0 && $i < $last ) {
-                $maxTierPrice[] = (( $next-1 ) - ( $current-1 )) * $price[$i];
+                $maxTierPrice[] = (( $nextTier-1 ) - ( $currentTier-1 )) * $price[$i];
             }
     
             // return total price for qty that only reach the first tier, more than tier 0 but lesser than tier 1
@@ -87,8 +87,8 @@ class PriceHelper
             }
     
             // return total price for qty for rest of tiers, $i = last condition to prevent $i+1 to return more than tier count
-            if ( $i === $last || $qty >= $current && $qty < $next ) {
-                $totalprice = (( $qty - ($current-1) ) * $price[$i]) + array_sum(array_slice($maxTierPrice, 0, $i));
+            if ( $i === $last || $qty >= $currentTier && $qty < $nextTier ) {
+                $totalprice = (( $qty - ($currentTier-1) ) * $price[$i]) + array_sum(array_slice($maxTierPrice, 0, $i));
                 return $totalprice;
             } 
         }
@@ -110,62 +110,61 @@ class PriceHelper
      */
     public static function getPriceAtEachQty(array $qtyArr, array $tiers, bool $cumulative = false): array
     {
-        // we will need the cumulated price and quantity
         $cumuPrice = [];
-        $cumuQty = [];
+        $maxTierPrice = []; 
 
-        // get the maximum total price of each tier
-        $tier1max = (array_keys($tiers)[1] - 1) * array_values($tiers)[0]; // 15000 = 10000 * 1.5
-        $tier2max = (array_keys($tiers)[2] - 1) - (array_keys($tiers)[1] - 1) * array_values($tiers)[1]; // 90,000 = 100,000 - 10,000(max quantity for prev tier) * 1
+        $totalprice = 0;
+        $tier  = array_keys($tiers);
+        $price = array_values($tiers);
+        $last  = count($tiers)-1;
 
-        if ($cumulative) {
-            foreach ($qtyArr as $qty) {
-                $cumuQty[] = $qty; // create and sum up what has been accumulated
-
-                if ( $qty <= 0 ) {
-                    $price = 0;
-                }
-                // less than 10001 AND more than or equals to 0
-                else if ( array_sum($cumuQty) < array_keys($tiers)[1] && array_sum($cumuQty) >= 0 ) {
-                    $price = $qty * array_values($tiers)[0]; // 1.5
-                }
-                // less than 100,001 AND more than or equals to 10001
-                else if ( array_sum($cumuQty) < array_keys($tiers)[2] && array_sum($cumuQty) >= array_keys($tiers)[1] ) {
-                    
-                    $qty = array_sum($cumuQty) - (array_keys($tiers)[1] - 1); // get remaining amount after deducting tier 1
-                    $price = ($qty * array_values($tiers)[1]) + $tier1max - array_sum($cumuPrice); // qty * 1 + 15,000 - previous months prices
-                }
-                // more than 100,000
-                else {
-                    $qty = array_sum($cumuQty) - (array_keys($tiers)[2] - 1); // get remaining amount after deducting tier 2
-                    $price = ($qty * array_values($tiers)[2]) + ($tier1max + $tier2max) - array_sum($cumuPrice); // qty * 0.5 + 105,000 - previous months prices
-                }
+        // loop thru all quantities
+        foreach($qtyArr as $qty) {
+            // add into cumulating quantity
+            $cumuQty[] = $qty;
+            $totalquantity = array_sum($cumuQty);
+            
+            // for each quantity, deduct from total quantities, 
+            for ( $i=0; $i < count($tiers); $i++ ) { 
+                $currentTier = $tier[$i];
+                $nextTier    = next($tier);
                 
-                $cumuPrice[] = $price;
-            }
-        }
-        else {
-            foreach ($qtyArr as $qty) {
-                if ( $qty <= 0 ) {
-                    $price = 0;
+                // separated the first tier because no deduction needed 
+                if ( $i === 0 ) {
+                    $maxTierPrice[] = ( $nextTier-1 ) * $price[$i];
                 }
-                // return total price for qty more than 0 AND less than 10,001
-                else if ( $qty >= array_keys($tiers)[0] && $qty < array_keys($tiers)[1]) {
-                    $price = $qty * array_values($tiers)[0];
-                } 
-                // return total price for qty more than 10,001 AND less than 100,001
-                else if ( $qty >= array_keys($tiers)[1] && $qty < array_keys($tiers)[2]) {
-                    $price = ( ($qty - (array_keys($tiers)[1] - 1) ) * array_values($tiers)[1] ) + $tier1max;
+                // second tier onwards, we will need to minus off previous tier's max
+                if ( $i > 0 && $i < $last ) {
+                    $maxTierPrice[] = (( $nextTier-1 ) - ( $currentTier-1 )) * $price[$i];
                 }
-                // return total price for qty more than 100,000
+
+                // calculate cumulative every month
+                if ($cumulative) {
+                    if ( $totalquantity >= 0 && $totalquantity < $tier[1] ) {
+                        $qty = $totalquantity;
+                        $totalprice = $qty * $price[0];
+                    }
+
+                    if ( $totalquantity >= $tier[ $last ] || $totalquantity >= $currentTier && $totalquantity < $tier[$i+1] ) {
+                        $qty = $totalquantity - ($currentTier-1);
+                        $totalprice = ( $qty * $price[$i] ) + array_sum(array_slice($maxTierPrice, 0, $i)) - array_sum($cumuPrice);
+                    } 
+                }
+    
+                // reset every month
                 else {
-                    $price = ( ($qty - (array_keys($tiers)[2] - 1) ) * array_values($tiers)[2] ) + $tier1max + $tier2max;
+                    if ( $qty >= 0 && $qty < $tier[1] ) {
+                        $totalprice = $qty * $price[0];
+                    }
+    
+                    if ( $qty >= $tier[ $last ] || $qty >= $currentTier && $qty < $tier[$i+1] ) {
+                        $totalprice = (( $qty - ($currentTier-1) ) * $price[$i]) + array_sum(array_slice($maxTierPrice, 0, $i));
+                    } 
                 }
-
-                $cumuPrice[] = $price;
             }
+            
+            $cumuPrice[] = $totalprice;
         }
-
-        return $cumuPrice;
-    }
+        return $cumuPrice;   
+    } 
 }
